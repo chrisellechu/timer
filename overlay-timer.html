@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mission Timer Overlay</title>
+<style>
+  :root{
+    --primary:#0093D0;
+    --secondary:#003865;
+    --text:#003865;
+    --font-size:16px;
+    --card-width:300px;
+    --card-alpha:1;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    overflow:hidden;background:transparent;
+    font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  button{font-family:inherit;cursor:pointer;}
+
+  #overlay-root{
+    position:fixed;
+    width:var(--card-width);
+    max-width:92vw;
+  }
+  #overlay-root.pos-top-right{ top:14px; right:14px; }
+  #overlay-root.pos-top-left{ top:14px; left:14px; }
+  #overlay-root.pos-bottom-right{ bottom:14px; right:14px; }
+  #overlay-root.pos-bottom-left{ bottom:14px; left:14px; }
+
+  .card{
+    background:rgba(255,255,255,var(--card-alpha));
+    border-radius:18px;
+    box-shadow:0 8px 28px rgba(0,56,101,0.22);
+    padding:18px 20px;
+    color:var(--text);
+    font-size:var(--font-size);
+    position:relative;
+  }
+
+  .becky-block{ margin-bottom:14px; }
+  .becky-name{
+    font-weight:800; color:var(--primary);
+    font-size:0.95em; letter-spacing:.02em; margin-bottom:2px;
+  }
+  .welcome-heading{
+    font-weight:800; color:var(--secondary);
+    font-size:1.15em; margin-bottom:6px; line-height:1.25;
+  }
+  .instruction-text{
+    font-size:0.85em; line-height:1.55; color:var(--text);
+    opacity:.9; white-space:pre-line;
+  }
+
+  .timer-block{ text-align:center; }
+  .timer-header{
+    font-size:0.72em; font-weight:800; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--primary); margin-bottom:4px;
+  }
+  .timer-display{
+    font-size:2.1em; font-weight:800; color:var(--secondary);
+    letter-spacing:.03em; font-variant-numeric:tabular-nums;
+    margin-bottom:12px;
+  }
+
+  .btn-main{
+    width:100%; border:none; border-radius:40px;
+    padding:0.85em 1em; font-size:0.9em; font-weight:800;
+    letter-spacing:.04em; color:#fff;
+    box-shadow:0 4px 14px rgba(0,56,101,0.25);
+    transition:filter .15s,transform .15s;
+  }
+  .btn-main:hover{ filter:brightness(1.08); }
+  .btn-main:active{ transform:scale(0.97); }
+  .btn-start{ background:var(--primary); }
+  .btn-finish{ background:var(--secondary); }
+
+  .completion-block{ text-align:center; }
+  .completion-title{
+    font-size:0.95em; font-weight:800; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--primary); margin-bottom:6px;
+  }
+  .completion-time{
+    font-size:2em; font-weight:800; color:var(--secondary);
+    letter-spacing:.03em; font-variant-numeric:tabular-nums; margin-bottom:10px;
+  }
+  .completion-message{
+    font-size:0.82em; color:var(--text); opacity:.9;
+    line-height:1.5; margin-bottom:14px;
+  }
+  .btn-copy{ background:var(--primary); }
+  .copy-success{
+    font-size:0.78em; font-weight:700; color:#2f9e5c;
+    text-align:center; margin-top:8px; min-height:1em;
+    opacity:0; transition:opacity .3s;
+  }
+  .copy-success.show{ opacity:1; }
+
+  .hidden{ display:none !important; }
+
+  /* ===== GEAR + SETTINGS ===== */
+  .gear-btn{
+    position:fixed; bottom:10px; left:10px; z-index:998;
+    width:28px; height:28px; border-radius:50%; border:none;
+    background:rgba(0,56,101,0.35); color:#fff; font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .settings-overlay{
+    display:none; position:fixed; inset:0; z-index:999;
+    background:rgba(0,20,40,0.55);
+    align-items:center; justify-content:center; padding:16px;
+  }
+  .settings-overlay.show{ display:flex; }
+  .settings-panel{
+    background:#fff; border-radius:16px; max-width:460px; width:100%;
+    max-height:90vh; overflow-y:auto; padding:20px 22px;
+    color:#003865; text-align:left; font-size:14px;
+  }
+  .settings-panel h2{ margin:0 0 4px 0; color:#0093D0; font-size:18px; }
+  .settings-panel .note{ font-size:11px; color:#888; margin:0 0 14px 0; line-height:1.5; }
+  .s-sec{ margin-bottom:16px; }
+  .s-sec h4{
+    font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+    color:#0093D0; margin:0 0 8px 0; border-bottom:1px solid #e6eef4; padding-bottom:4px;
+  }
+  .s-field{ margin-bottom:9px; }
+  .s-field label{ display:block; font-size:11px; font-weight:700; color:#555; margin-bottom:2px; }
+  .s-field input[type=text], .s-field textarea, .s-field select{
+    width:100%; padding:7px 9px; font-size:12.5px; border:1px solid #ddd;
+    border-radius:6px; font-family:inherit;
+  }
+  .s-field textarea{ min-height:70px; resize:vertical; }
+  .s-row{ display:flex; gap:8px; }
+  .s-row .s-field{ flex:1; }
+  .s-check{ display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:6px; }
+  .s-color-row{ display:flex; align-items:center; gap:8px; }
+  .s-color-row input[type=color]{ width:34px; height:30px; border:1px solid #ddd; border-radius:5px; padding:0; }
+  .s-range-val{ font-size:11px; color:#888; min-width:36px; text-align:right; }
+  .s-actions{ display:flex; gap:8px; margin-top:14px; }
+  .s-actions button{ flex:1; padding:10px; border-radius:8px; border:none; font-weight:800; font-size:12.5px; }
+  .btn-save{ background:#0093D0; color:#fff; }
+  .btn-reset-mission{ background:#e6552e; color:#fff; }
+  .btn-close{ background:#eee; color:#333; flex:0 0 70px; }
+</style>
+</head>
+<body>
+
+<div id="overlay-root" class="pos-top-right">
+  <div class="card" id="card">
+
+    <div class="becky-block" id="becky-block">
+      <div class="becky-name" id="becky-name">Becky</div>
+      <div class="welcome-heading" id="welcome-heading">Welcome, Scientist!</div>
+      <div class="instruction-text" id="instruction-text">I am Becky, your guide for today's mission.
+
+You will travel through multiple rooms solving challenges and collecting clues.
+
+Your mission time will begin once you press START MISSION.
+
+Work quickly and carefully. The fastest completion time wins.</div>
+    </div>
+
+    <div class="timer-block" id="timer-block">
+      <div class="timer-header" id="timer-header">MISSION TIME</div>
+      <div class="timer-display" id="timer-display">00:00</div>
+      <button class="btn-main btn-start" id="btn-start">START MISSION</button>
+      <button class="btn-main btn-finish hidden" id="btn-finish">FINISH MISSION</button>
+    </div>
+
+    <div class="completion-block hidden" id="completion-block">
+      <div class="completion-title" id="completion-title">MISSION COMPLETE</div>
+      <div class="completion-time" id="completion-time">00:00</div>
+      <div class="completion-message" id="completion-message">Please record your time on the leaderboard.</div>
+      <button class="btn-main btn-copy" id="btn-copy">COPY TIME</button>
+      <div class="copy-success" id="copy-success">Time copied successfully.</div>
+    </div>
+
+  </div>
+</div>
+
+<button class="gear-btn" id="gear-btn">&#9881;</button>
+<div class="settings-overlay" id="settings-overlay"></div>
+
+<script>
+'use strict';
+
+/* ================================================================
+   STORAGE KEYS
+   Mission state and admin settings both live in localStorage only,
+   on this device/browser. Since localStorage is shared across all
+   tabs and pages on the same origin, the stopwatch keeps running
+   correctly as a participant moves between room pages, refreshes,
+   or reopens the browser -- as long as every room page embedding
+   this file is served from the same GitHub Pages site.
+   ================================================================ */
+const K_STARTED   = 'missionStarted';
+const K_COMPLETED = 'missionCompleted';
+const K_STARTTIME = 'missionStartTime';
+const K_FINALTIME = 'missionFinalTime';
+const K_SETTINGS  = 'overlayTimerSettings';
+
+const DEFAULT_SETTINGS = {
+  beckyName: 'Becky',
+  welcomeHeading: 'Welcome, Scientist!',
+  instructionText: "I am Becky, your guide for today's mission.\n\nYou will travel through multiple rooms solving challenges and collecting clues.\n\nYour mission time will begin once you press START MISSION.\n\nWork quickly and carefully. The fastest completion time wins.",
+  startButtonText: 'START MISSION',
+  finishButtonText: 'FINISH MISSION',
+  timerHeader: 'MISSION TIME',
+  completionTitle: 'MISSION COMPLETE',
+  completionMessage: 'Please record your time on the leaderboard.',
+  copyButtonText: 'COPY TIME',
+  successMessage: 'Time copied successfully.',
+  showBecky: true,
+  showStart: true,
+  showFinish: false,
+  primaryColor: '#0093D0',
+  secondaryColor: '#003865',
+  textColor: '#003865',
+  fontSize: 16,
+  cardWidth: 300,
+  transparency: 100,
+  position: 'top-right'
+};
+
+function loadSettings(){
+  const stored = JSON.parse(localStorage.getItem(K_SETTINGS) || 'null') || {};
+  return Object.assign({}, DEFAULT_SETTINGS, stored);
+}
+function saveSettings(s){ localStorage.setItem(K_SETTINGS, JSON.stringify(s)); }
+
+let SETTINGS = loadSettings();
+
+/* ================================================================
+   APPLY SETTINGS TO THE DOM
+   ================================================================ */
+function applySettings(){
+  document.documentElement.style.setProperty('--primary', SETTINGS.primaryColor);
+  document.documentElement.style.setProperty('--secondary', SETTINGS.secondaryColor);
+  document.documentElement.style.setProperty('--text', SETTINGS.textColor);
+  document.documentElement.style.setProperty('--font-size', SETTINGS.fontSize + 'px');
+  document.documentElement.style.setProperty('--card-width', SETTINGS.cardWidth + 'px');
+  document.documentElement.style.setProperty('--card-alpha', (SETTINGS.transparency/100).toString());
+
+  const root = document.getElementById('overlay-root');
+  root.className = 'pos-' + SETTINGS.position;
+
+  document.getElementById('becky-name').textContent = SETTINGS.beckyName;
+  document.getElementById('welcome-heading').textContent = SETTINGS.welcomeHeading;
+  document.getElementById('instruction-text').textContent = SETTINGS.instructionText;
+  document.getElementById('btn-start').textContent = SETTINGS.startButtonText;
+  document.getElementById('btn-finish').textContent = SETTINGS.finishButtonText;
+  document.getElementById('timer-header').textContent = SETTINGS.timerHeader;
+  document.getElementById('completion-title').textContent = SETTINGS.completionTitle;
+  document.getElementById('completion-message').textContent = SETTINGS.completionMessage;
+  document.getElementById('btn-copy').textContent = SETTINGS.copyButtonText;
+  document.getElementById('copy-success').textContent = SETTINGS.successMessage;
+
+  document.getElementById('becky-block').classList.toggle('hidden', !SETTINGS.showBecky);
+
+  refreshButtonVisibility();
+}
+
+/* ================================================================
+   MISSION STATE / STOPWATCH
+   ================================================================ */
+let tickInterval = null;
+
+function fmt(totalSeconds){
+  const m = Math.floor(totalSeconds/60);
+  const s = totalSeconds%60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function getState(){
+  return {
+    started: localStorage.getItem(K_STARTED) === 'true',
+    completed: localStorage.getItem(K_COMPLETED) === 'true',
+    startTime: parseInt(localStorage.getItem(K_STARTTIME) || '0', 10),
+    finalTime: parseInt(localStorage.getItem(K_FINALTIME) || '0', 10)
+  };
+}
+
+function refreshButtonVisibility(){
+  const st = getState();
+  const startBtn = document.getElementById('btn-start');
+  const finishBtn = document.getElementById('btn-finish');
+  const timerBlock = document.getElementById('timer-block');
+  const completionBlock = document.getElementById('completion-block');
+
+  if(st.completed){
+    timerBlock.classList.add('hidden');
+    completionBlock.classList.remove('hidden');
+    document.getElementById('completion-time').textContent = fmt(st.finalTime);
+    return;
+  }
+
+  completionBlock.classList.add('hidden');
+  timerBlock.classList.remove('hidden');
+
+  if(st.started){
+    startBtn.classList.add('hidden');
+    finishBtn.classList.toggle('hidden', !SETTINGS.showFinish);
+  } else {
+    startBtn.classList.toggle('hidden', !SETTINGS.showStart);
+    finishBtn.classList.add('hidden');
+  }
+}
+
+function renderTick(){
+  const st = getState();
+  if(st.completed){
+    document.getElementById('completion-time').textContent = fmt(st.finalTime);
+    return;
+  }
+  if(st.started){
+    const elapsed = Math.max(0, Math.floor((Date.now() - st.startTime)/1000));
+    document.getElementById('timer-display').textContent = fmt(elapsed);
+  } else {
+    document.getElementById('timer-display').textContent = '00:00';
+  }
+}
+
+function startMission(){
+  localStorage.setItem(K_STARTED, 'true');
+  localStorage.setItem(K_COMPLETED, 'false');
+  localStorage.setItem(K_STARTTIME, Date.now().toString());
+  refreshButtonVisibility();
+  renderTick();
+}
+
+function finishMission(){
+  const st = getState();
+  if(!st.started || st.completed) return;
+  const elapsed = Math.max(0, Math.floor((Date.now() - st.startTime)/1000));
+  localStorage.setItem(K_COMPLETED, 'true');
+  localStorage.setItem(K_FINALTIME, elapsed.toString());
+  refreshButtonVisibility();
+}
+
+function resetMission(){
+  localStorage.removeItem(K_STARTED);
+  localStorage.removeItem(K_COMPLETED);
+  localStorage.removeItem(K_STARTTIME);
+  localStorage.removeItem(K_FINALTIME);
+  refreshButtonVisibility();
+  renderTick();
+}
+
+document.getElementById('btn-start').addEventListener('click', startMission);
+document.getElementById('btn-finish').addEventListener('click', finishMission);
+
+document.getElementById('btn-copy').addEventListener('click', () => {
+  const st = getState();
+  const timeStr = fmt(st.finalTime);
+  const successEl = document.getElementById('copy-success');
+  const showSuccess = () => {
+    successEl.classList.add('show');
+    clearTimeout(showSuccess._t);
+    showSuccess._t = setTimeout(()=>successEl.classList.remove('show'), 2500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(timeStr).then(showSuccess).catch(()=>{
+      fallbackCopy(timeStr); showSuccess();
+    });
+  } else {
+    fallbackCopy(timeStr); showSuccess();
+  }
+});
+
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta);
+}
+
+// Keep multiple simultaneously-open tabs/frames in sync instantly.
+window.addEventListener('storage', (e) => {
+  if(e.key === K_SETTINGS){
+    SETTINGS = loadSettings();
+    applySettings();
+  }
+  if([K_STARTED,K_COMPLETED,K_STARTTIME,K_FINALTIME].includes(e.key)){
+    refreshButtonVisibility();
+    renderTick();
+  }
+});
+
+/* ================================================================
+   ADMIN SETTINGS PANEL
+   No PIN by design, per spec -- this overlay is meant to be quickly
+   reconfigured per room without any barrier. Anyone with access to
+   the page can open it via the gear icon.
+   ================================================================ */
+const gearBtn = document.getElementById('gear-btn');
+const settingsOv = document.getElementById('settings-overlay');
+
+gearBtn.addEventListener('click', renderSettingsPanel);
+settingsOv.addEventListener('click', (e) => { if(e.target === settingsOv) settingsOv.classList.remove('show'); });
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function renderSettingsPanel(){
+  const s = SETTINGS;
+  settingsOv.innerHTML = `
+    <div class="settings-panel">
+      <h2>Mission Timer Settings</h2>
+      <p class="note">All changes save to this device only and apply immediately. Use this same file across every room -- just adjust which buttons and guide text show for each one.</p>
+
+      <div class="s-sec"><h4>Guide Text</h4>
+        <div class="s-field"><label>Guide Name</label><input type="text" id="st-beckyName" value="${esc(s.beckyName)}"></div>
+        <div class="s-field"><label>Welcome Heading</label><input type="text" id="st-welcomeHeading" value="${esc(s.welcomeHeading)}"></div>
+        <div class="s-field"><label>Instruction Text</label><textarea id="st-instructionText">${esc(s.instructionText)}</textarea></div>
+      </div>
+
+      <div class="s-sec"><h4>Button &amp; Screen Text</h4>
+        <div class="s-row">
+          <div class="s-field"><label>Start Button</label><input type="text" id="st-startButtonText" value="${esc(s.startButtonText)}"></div>
+          <div class="s-field"><label>Finish Button</label><input type="text" id="st-finishButtonText" value="${esc(s.finishButtonText)}"></div>
+        </div>
+        <div class="s-field"><label>Timer Header</label><input type="text" id="st-timerHeader" value="${esc(s.timerHeader)}"></div>
+        <div class="s-field"><label>Completion Title</label><input type="text" id="st-completionTitle" value="${esc(s.completionTitle)}"></div>
+        <div class="s-field"><label>Completion Message</label><input type="text" id="st-completionMessage" value="${esc(s.completionMessage)}"></div>
+        <div class="s-row">
+          <div class="s-field"><label>Copy Button</label><input type="text" id="st-copyButtonText" value="${esc(s.copyButtonText)}"></div>
+          <div class="s-field"><label>Success Message</label><input type="text" id="st-successMessage" value="${esc(s.successMessage)}"></div>
+        </div>
+      </div>
+
+      <div class="s-sec"><h4>Visibility</h4>
+        <label class="s-check"><input type="checkbox" id="st-showBecky" ${s.showBecky?'checked':''}> Show Guide Instructions</label>
+        <label class="s-check"><input type="checkbox" id="st-showStart" ${s.showStart?'checked':''}> Show START MISSION Button</label>
+        <label class="s-check"><input type="checkbox" id="st-showFinish" ${s.showFinish?'checked':''}> Show FINISH MISSION Button</label>
+      </div>
+
+      <div class="s-sec"><h4>Appearance</h4>
+        <div class="s-row">
+          <div class="s-field"><label>Primary Color</label>
+            <div class="s-color-row"><input type="color" id="st-primaryColor" value="${s.primaryColor}"></div>
+          </div>
+          <div class="s-field"><label>Secondary Color</label>
+            <div class="s-color-row"><input type="color" id="st-secondaryColor" value="${s.secondaryColor}"></div>
+          </div>
+          <div class="s-field"><label>Text Color</label>
+            <div class="s-color-row"><input type="color" id="st-textColor" value="${s.textColor}"></div>
+          </div>
+        </div>
+        <div class="s-field"><label>Font Size (px)</label>
+          <div class="s-color-row">
+            <input type="range" id="st-fontSize" min="12" max="24" value="${s.fontSize}" style="flex:1;">
+            <span class="s-range-val" id="st-fontSizeVal">${s.fontSize}px</span>
+          </div>
+        </div>
+        <div class="s-field"><label>Card Width (px)</label>
+          <div class="s-color-row">
+            <input type="range" id="st-cardWidth" min="220" max="420" value="${s.cardWidth}" style="flex:1;">
+            <span class="s-range-val" id="st-cardWidthVal">${s.cardWidth}px</span>
+          </div>
+        </div>
+        <div class="s-field"><label>Transparency (card opacity %)</label>
+          <div class="s-color-row">
+            <input type="range" id="st-transparency" min="20" max="100" value="${s.transparency}" style="flex:1;">
+            <span class="s-range-val" id="st-transparencyVal">${s.transparency}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-sec"><h4>Position</h4>
+        <select id="st-position">
+          <option value="top-right" ${s.position==='top-right'?'selected':''}>Top Right</option>
+          <option value="top-left" ${s.position==='top-left'?'selected':''}>Top Left</option>
+          <option value="bottom-right" ${s.position==='bottom-right'?'selected':''}>Bottom Right</option>
+          <option value="bottom-left" ${s.position==='bottom-left'?'selected':''}>Bottom Left</option>
+        </select>
+      </div>
+
+      <div class="s-actions">
+        <button class="btn-save" id="st-save">Save Settings</button>
+        <button class="btn-reset-mission" id="st-reset">Reset Mission Timer</button>
+        <button class="btn-close" id="st-close">Close</button>
+      </div>
+    </div>
+  `;
+  settingsOv.classList.add('show');
+
+  ['fontSize','cardWidth','transparency'].forEach(key=>{
+    const input = document.getElementById('st-'+key);
+    const valEl = document.getElementById('st-'+key+'Val');
+    input.addEventListener('input', ()=>{
+      valEl.textContent = input.value + (key==='transparency' ? '%' : 'px');
+    });
+  });
+
+  document.getElementById('st-save').addEventListener('click', saveSettingsFromPanel);
+  document.getElementById('st-reset').addEventListener('click', ()=>{
+    if(confirm('Reset the mission timer on this device? This clears the current start/finish state.')){
+      resetMission();
+    }
+  });
+  document.getElementById('st-close').addEventListener('click', ()=>settingsOv.classList.remove('show'));
+}
+
+function saveSettingsFromPanel(){
+  SETTINGS = {
+    beckyName: document.getElementById('st-beckyName').value || DEFAULT_SETTINGS.beckyName,
+    welcomeHeading: document.getElementById('st-welcomeHeading').value || DEFAULT_SETTINGS.welcomeHeading,
+    instructionText: document.getElementById('st-instructionText').value,
+    startButtonText: document.getElementById('st-startButtonText').value || DEFAULT_SETTINGS.startButtonText,
+    finishButtonText: document.getElementById('st-finishButtonText').value || DEFAULT_SETTINGS.finishButtonText,
+    timerHeader: document.getElementById('st-timerHeader').value || DEFAULT_SETTINGS.timerHeader,
+    completionTitle: document.getElementById('st-completionTitle').value || DEFAULT_SETTINGS.completionTitle,
+    completionMessage: document.getElementById('st-completionMessage').value,
+    copyButtonText: document.getElementById('st-copyButtonText').value || DEFAULT_SETTINGS.copyButtonText,
+    successMessage: document.getElementById('st-successMessage').value,
+    showBecky: document.getElementById('st-showBecky').checked,
+    showStart: document.getElementById('st-showStart').checked,
+    showFinish: document.getElementById('st-showFinish').checked,
+    primaryColor: document.getElementById('st-primaryColor').value,
+    secondaryColor: document.getElementById('st-secondaryColor').value,
+    textColor: document.getElementById('st-textColor').value,
+    fontSize: parseInt(document.getElementById('st-fontSize').value,10),
+    cardWidth: parseInt(document.getElementById('st-cardWidth').value,10),
+    transparency: parseInt(document.getElementById('st-transparency').value,10),
+    position: document.getElementById('st-position').value
+  };
+  saveSettings(SETTINGS);
+  applySettings();
+  settingsOv.classList.remove('show');
+}
+
+/* ================================================================
+   INIT
+   ================================================================ */
+applySettings();
+refreshButtonVisibility();
+renderTick();
+tickInterval = setInterval(renderTick, 1000);
+</script>
+</body>
+</html>
