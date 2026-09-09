@@ -189,18 +189,26 @@ Work quickly and carefully. The fastest completion time wins.</div>
 
 /* ================================================================
    STORAGE KEYS
-   Mission state and admin settings both live in localStorage only,
-   on this device/browser. Since localStorage is shared across all
-   tabs and pages on the same origin, the stopwatch keeps running
-   correctly as a participant moves between room pages, refreshes,
-   or reopens the browser -- as long as every room page embedding
-   this file is served from the same GitHub Pages site.
+   Mission STATE (started/completed/times) is intentionally shared
+   across every room -- that's what makes the stopwatch keep counting
+   as a participant moves from Room 1 to Room 5.
+
+   Admin SETTINGS (which buttons show, guide text, colors, etc.) are
+   namespaced per room instead, using a ?room= URL parameter on the
+   embed. Without this, every room would be forced to show identical
+   buttons/text, since they'd otherwise all read the same settings
+   key on the same origin. Give each room's embed a different
+   ?room=roomX in its src URL and each gets its own independent
+   settings, while all of them still share the one running clock.
    ================================================================ */
+const params = new URLSearchParams(location.search);
+const ROOM_ID = params.get('room') || 'default';
+
 const K_STARTED   = 'missionStarted';
 const K_COMPLETED = 'missionCompleted';
 const K_STARTTIME = 'missionStartTime';
 const K_FINALTIME = 'missionFinalTime';
-const K_SETTINGS  = 'overlayTimerSettings';
+const K_SETTINGS  = 'overlayTimerSettings_' + ROOM_ID;
 
 const DEFAULT_SETTINGS = {
   beckyName: 'Becky',
@@ -412,7 +420,7 @@ function renderSettingsPanel(){
   settingsOv.innerHTML = `
     <div class="settings-panel">
       <h2>Mission Timer Settings</h2>
-      <p class="note">All changes save to this device only and apply immediately. Use this same file across every room -- just adjust which buttons and guide text show for each one.</p>
+      <p class="note">Editing settings for: <strong>${esc(ROOM_ID)}</strong> (set by ?room= in this embed's URL). These settings only affect this room's embed — the running mission clock is shared and keeps counting across every room regardless.</p>
 
       <div class="s-sec"><h4>Guide Text</h4>
         <div class="s-field"><label>Guide Name</label><input type="text" id="st-beckyName" value="${esc(s.beckyName)}"></div>
