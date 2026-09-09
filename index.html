@@ -52,24 +52,6 @@
   /* If the embed box is short, the (potentially long) guide message
      scrolls internally within itself -- the timer/buttons below it
      stay fully visible and are never pushed off-screen and clipped. */
-  .becky-block{
-    margin-bottom:14px; flex-shrink:1; min-height:0;
-    display:flex; flex-direction:column;
-  }
-  .becky-name{
-    font-weight:800; color:var(--primary);
-    font-size:0.95em; letter-spacing:.02em; margin-bottom:2px; flex-shrink:0;
-  }
-  .welcome-heading{
-    font-weight:800; color:var(--secondary);
-    font-size:1.15em; margin-bottom:6px; line-height:1.25; flex-shrink:0;
-  }
-  .instruction-text{
-    font-size:0.85em; line-height:1.55; color:var(--text);
-    opacity:.9; white-space:pre-line;
-    overflow-y:auto; -webkit-overflow-scrolling:touch;
-    flex:1; min-height:0;
-  }
 
   .timer-block{ text-align:center; flex-shrink:0; }
   .timer-header{
@@ -167,18 +149,6 @@
 <div id="overlay-root" class="pos-top-right">
   <div class="card" id="card">
 
-    <div class="becky-block" id="becky-block">
-      <div class="becky-name" id="becky-name">Becky</div>
-      <div class="welcome-heading" id="welcome-heading">Welcome, Scientist!</div>
-      <div class="instruction-text" id="instruction-text">I am Becky, your guide for today's mission.
-
-You will travel through multiple rooms solving challenges and collecting clues.
-
-Your mission time will begin once you press START MISSION.
-
-Work quickly and carefully. The fastest completion time wins.</div>
-    </div>
-
     <div class="timer-block" id="timer-block">
       <div class="timer-header" id="timer-header">MISSION TIME</div>
       <div class="timer-display" id="timer-display">00:00</div>
@@ -227,9 +197,6 @@ const K_FINALTIME = 'missionFinalTime';
 const K_SETTINGS  = 'overlayTimerSettings_' + ROOM_ID;
 
 const DEFAULT_SETTINGS = {
-  beckyName: 'Becky',
-  welcomeHeading: 'Welcome, Scientist!',
-  instructionText: "I am Becky, your guide for today's mission.\n\nYou will travel through multiple rooms solving challenges and collecting clues.\n\nYour mission time will begin once you press START MISSION.\n\nWork quickly and carefully. The fastest completion time wins.",
   startButtonText: 'START MISSION',
   finishButtonText: 'FINISH MISSION',
   timerHeader: 'MISSION TIME',
@@ -237,14 +204,13 @@ const DEFAULT_SETTINGS = {
   completionMessage: 'Please record your time on the leaderboard.',
   copyButtonText: 'COPY TIME',
   successMessage: 'Time copied successfully.',
-  showBecky: true,
   showStart: true,
   showFinish: false,
   primaryColor: '#0093D0',
   secondaryColor: '#003865',
   textColor: '#003865',
   fontSize: 16,
-  cardWidth: 300,
+  cardWidth: 220,
   transparency: 100,
   position: 'top-right'
 };
@@ -271,9 +237,6 @@ function applySettings(){
   const root = document.getElementById('overlay-root');
   root.className = 'pos-' + SETTINGS.position;
 
-  document.getElementById('becky-name').textContent = SETTINGS.beckyName;
-  document.getElementById('welcome-heading').textContent = SETTINGS.welcomeHeading;
-  document.getElementById('instruction-text').textContent = SETTINGS.instructionText;
   document.getElementById('btn-start').textContent = SETTINGS.startButtonText;
   document.getElementById('btn-finish').textContent = SETTINGS.finishButtonText;
   document.getElementById('timer-header').textContent = SETTINGS.timerHeader;
@@ -281,8 +244,6 @@ function applySettings(){
   document.getElementById('completion-message').textContent = SETTINGS.completionMessage;
   document.getElementById('btn-copy').textContent = SETTINGS.copyButtonText;
   document.getElementById('copy-success').textContent = SETTINGS.successMessage;
-
-  document.getElementById('becky-block').classList.toggle('hidden', !SETTINGS.showBecky);
 
   refreshButtonVisibility();
 }
@@ -438,12 +399,6 @@ function renderSettingsPanel(){
       <h2>Mission Timer Settings</h2>
       <p class="note">Editing settings for: <strong>${esc(ROOM_ID)}</strong> (set by ?room= in this embed's URL). These settings only affect this room's embed — the running mission clock is shared and keeps counting across every room regardless.</p>
 
-      <div class="s-sec"><h4>Guide Text</h4>
-        <div class="s-field"><label>Guide Name</label><input type="text" id="st-beckyName" value="${esc(s.beckyName)}"></div>
-        <div class="s-field"><label>Welcome Heading</label><input type="text" id="st-welcomeHeading" value="${esc(s.welcomeHeading)}"></div>
-        <div class="s-field"><label>Instruction Text</label><textarea id="st-instructionText">${esc(s.instructionText)}</textarea></div>
-      </div>
-
       <div class="s-sec"><h4>Button &amp; Screen Text</h4>
         <div class="s-row">
           <div class="s-field"><label>Start Button</label><input type="text" id="st-startButtonText" value="${esc(s.startButtonText)}"></div>
@@ -459,7 +414,6 @@ function renderSettingsPanel(){
       </div>
 
       <div class="s-sec"><h4>Visibility</h4>
-        <label class="s-check"><input type="checkbox" id="st-showBecky" ${s.showBecky?'checked':''}> Show Guide Instructions</label>
         <label class="s-check"><input type="checkbox" id="st-showStart" ${s.showStart?'checked':''}> Show START MISSION Button</label>
         <label class="s-check"><input type="checkbox" id="st-showFinish" ${s.showFinish?'checked':''}> Show FINISH MISSION Button</label>
       </div>
@@ -484,7 +438,7 @@ function renderSettingsPanel(){
         </div>
         <div class="s-field"><label>Card Width (px)</label>
           <div class="s-color-row">
-            <input type="range" id="st-cardWidth" min="220" max="420" value="${s.cardWidth}" style="flex:1;">
+            <input type="range" id="st-cardWidth" min="160" max="360" value="${s.cardWidth}" style="flex:1;">
             <span class="s-range-val" id="st-cardWidthVal">${s.cardWidth}px</span>
           </div>
         </div>
@@ -533,9 +487,6 @@ function renderSettingsPanel(){
 
 function saveSettingsFromPanel(){
   SETTINGS = {
-    beckyName: document.getElementById('st-beckyName').value || DEFAULT_SETTINGS.beckyName,
-    welcomeHeading: document.getElementById('st-welcomeHeading').value || DEFAULT_SETTINGS.welcomeHeading,
-    instructionText: document.getElementById('st-instructionText').value,
     startButtonText: document.getElementById('st-startButtonText').value || DEFAULT_SETTINGS.startButtonText,
     finishButtonText: document.getElementById('st-finishButtonText').value || DEFAULT_SETTINGS.finishButtonText,
     timerHeader: document.getElementById('st-timerHeader').value || DEFAULT_SETTINGS.timerHeader,
@@ -543,7 +494,6 @@ function saveSettingsFromPanel(){
     completionMessage: document.getElementById('st-completionMessage').value,
     copyButtonText: document.getElementById('st-copyButtonText').value || DEFAULT_SETTINGS.copyButtonText,
     successMessage: document.getElementById('st-successMessage').value,
-    showBecky: document.getElementById('st-showBecky').checked,
     showStart: document.getElementById('st-showStart').checked,
     showFinish: document.getElementById('st-showFinish').checked,
     primaryColor: document.getElementById('st-primaryColor').value,
