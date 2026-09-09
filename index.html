@@ -35,9 +35,9 @@
 
   .card{
     background:rgba(255,255,255,var(--card-alpha));
-    border-radius:18px;
-    box-shadow:0 8px 28px rgba(0,56,101,0.22);
-    padding:18px 20px;
+    border-radius:14px;
+    box-shadow:0 6px 20px rgba(0,56,101,0.22);
+    padding:10px 14px;
     color:var(--text);
     font-size:var(--font-size);
     position:relative;
@@ -49,25 +49,21 @@
     overflow:hidden;
   }
 
-  /* If the embed box is short, the (potentially long) guide message
-     scrolls internally within itself -- the timer/buttons below it
-     stay fully visible and are never pushed off-screen and clipped. */
-
   .timer-block{ text-align:center; flex-shrink:0; }
   .timer-header{
-    font-size:0.72em; font-weight:800; letter-spacing:.12em;
-    text-transform:uppercase; color:var(--primary); margin-bottom:4px;
+    font-size:0.65em; font-weight:800; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--primary); margin-bottom:2px;
   }
   .timer-display{
-    font-size:2.1em; font-weight:800; color:var(--secondary);
+    font-size:1.6em; font-weight:800; color:var(--secondary);
     letter-spacing:.03em; font-variant-numeric:tabular-nums;
-    margin-bottom:12px;
+    margin-bottom:8px; line-height:1.1;
   }
 
   .btn-main{
-    width:100%; border:none; border-radius:40px;
-    padding:0.85em 1em; font-size:0.9em; font-weight:800;
-    letter-spacing:.04em; color:#fff;
+    width:100%; border:none; border-radius:30px;
+    padding:0.55em 0.8em; font-size:0.8em; font-weight:800;
+    letter-spacing:.03em; color:#fff;
     box-shadow:0 4px 14px rgba(0,56,101,0.25);
     transition:filter .15s,transform .15s;
   }
