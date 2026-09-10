@@ -92,6 +92,10 @@
     opacity:0; transition:opacity .3s;
   }
   .copy-success.show{ opacity:1; }
+  .auto-reset-notice{
+    font-size:0.68em; color:var(--text); opacity:.55;
+    text-align:center; margin-top:8px;
+  }
 
   .hidden{ display:none !important; }
 
@@ -158,6 +162,7 @@
       <div class="completion-message" id="completion-message">Please record your time on the leaderboard.</div>
       <button class="btn-main btn-copy" id="btn-copy">COPY TIME</button>
       <div class="copy-success" id="copy-success">Time copied successfully.</div>
+      <div class="auto-reset-notice" id="auto-reset-notice"></div>
     </div>
 
   </div>
@@ -190,6 +195,7 @@ const K_STARTED   = 'missionStarted';
 const K_COMPLETED = 'missionCompleted';
 const K_STARTTIME = 'missionStartTime';
 const K_FINALTIME = 'missionFinalTime';
+const K_COMPLETETIME = 'missionCompletionTime';
 const K_SETTINGS  = 'overlayTimerSettings_' + ROOM_ID;
 
 const DEFAULT_SETTINGS = {
@@ -202,6 +208,7 @@ const DEFAULT_SETTINGS = {
   successMessage: 'Time copied successfully.',
   showStart: true,
   showFinish: false,
+  autoResetSeconds: 20,
   primaryColor: '#0093D0',
   secondaryColor: '#003865',
   textColor: '#003865',
@@ -255,12 +262,15 @@ function fmt(totalSeconds){
   return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 
+let autoResetTimer = null;
+
 function getState(){
   return {
     started: localStorage.getItem(K_STARTED) === 'true',
     completed: localStorage.getItem(K_COMPLETED) === 'true',
     startTime: parseInt(localStorage.getItem(K_STARTTIME) || '0', 10),
-    finalTime: parseInt(localStorage.getItem(K_FINALTIME) || '0', 10)
+    finalTime: parseInt(localStorage.getItem(K_FINALTIME) || '0', 10),
+    completeTime: parseInt(localStorage.getItem(K_COMPLETETIME) || '0', 10)
   };
 }
 
@@ -275,9 +285,11 @@ function refreshButtonVisibility(){
     timerBlock.classList.add('hidden');
     completionBlock.classList.remove('hidden');
     document.getElementById('completion-time').textContent = fmt(st.finalTime);
+    scheduleAutoReset();
     return;
   }
 
+  if(autoResetTimer){ clearTimeout(autoResetTimer); autoResetTimer = null; }
   completionBlock.classList.add('hidden');
   timerBlock.classList.remove('hidden');
 
@@ -290,10 +302,41 @@ function refreshButtonVisibility(){
   }
 }
 
+// Once a mission is marked complete, this schedules (or immediately
+// triggers, if enough time has already passed -- e.g. after a page
+// reload) an automatic reset back to the idle "Start Mission" state,
+// so the next group using the same device doesn't need an admin to
+// manually clear it first. Set autoResetSeconds to 0 in Admin
+// Settings to disable this and require a manual reset instead.
+function scheduleAutoReset(){
+  if(autoResetTimer){ clearTimeout(autoResetTimer); autoResetTimer = null; }
+  const st = getState();
+  if(!st.completed) return;
+  const seconds = SETTINGS.autoResetSeconds || 0;
+  const noticeEl = document.getElementById('auto-reset-notice');
+  if(seconds <= 0){
+    if(noticeEl) noticeEl.textContent = '';
+    return;
+  }
+  const elapsedSinceCompletion = Date.now() - (st.completeTime || Date.now());
+  const remainingMs = seconds*1000 - elapsedSinceCompletion;
+  if(remainingMs <= 0){
+    resetMission();
+    return;
+  }
+  autoResetTimer = setTimeout(resetMission, remainingMs);
+}
+
 function renderTick(){
   const st = getState();
   if(st.completed){
     document.getElementById('completion-time').textContent = fmt(st.finalTime);
+    const seconds = SETTINGS.autoResetSeconds || 0;
+    const noticeEl = document.getElementById('auto-reset-notice');
+    if(noticeEl && seconds > 0){
+      const remaining = Math.max(0, Math.ceil((seconds*1000 - (Date.now()-(st.completeTime||Date.now())))/1000));
+      noticeEl.textContent = `Ready for the next group in ${remaining}s…`;
+    }
     return;
   }
   if(st.started){
@@ -308,6 +351,7 @@ function startMission(){
   localStorage.setItem(K_STARTED, 'true');
   localStorage.setItem(K_COMPLETED, 'false');
   localStorage.setItem(K_STARTTIME, Date.now().toString());
+  localStorage.removeItem(K_COMPLETETIME);
   refreshButtonVisibility();
   renderTick();
 }
@@ -318,14 +362,17 @@ function finishMission(){
   const elapsed = Math.max(0, Math.floor((Date.now() - st.startTime)/1000));
   localStorage.setItem(K_COMPLETED, 'true');
   localStorage.setItem(K_FINALTIME, elapsed.toString());
+  localStorage.setItem(K_COMPLETETIME, Date.now().toString());
   refreshButtonVisibility();
 }
 
 function resetMission(){
+  if(autoResetTimer){ clearTimeout(autoResetTimer); autoResetTimer = null; }
   localStorage.removeItem(K_STARTED);
   localStorage.removeItem(K_COMPLETED);
   localStorage.removeItem(K_STARTTIME);
   localStorage.removeItem(K_FINALTIME);
+  localStorage.removeItem(K_COMPLETETIME);
   refreshButtonVisibility();
   renderTick();
 }
@@ -368,7 +415,7 @@ window.addEventListener('storage', (e) => {
     SETTINGS = loadSettings();
     applySettings();
   }
-  if([K_STARTED,K_COMPLETED,K_STARTTIME,K_FINALTIME].includes(e.key)){
+  if([K_STARTED,K_COMPLETED,K_STARTTIME,K_FINALTIME,K_COMPLETETIME].includes(e.key)){
     refreshButtonVisibility();
     renderTick();
   }
@@ -412,6 +459,14 @@ function renderSettingsPanel(){
       <div class="s-sec"><h4>Visibility</h4>
         <label class="s-check"><input type="checkbox" id="st-showStart" ${s.showStart?'checked':''}> Show START MISSION Button</label>
         <label class="s-check"><input type="checkbox" id="st-showFinish" ${s.showFinish?'checked':''}> Show FINISH MISSION Button</label>
+      </div>
+
+      <div class="s-sec"><h4>Auto-Reset</h4>
+        <div class="s-field">
+          <label>Seconds after completion before auto-reset (0 = never, requires manual reset)</label>
+          <input type="text" id="st-autoResetSeconds" value="${s.autoResetSeconds}">
+        </div>
+        <p class="note" style="margin:4px 0 0 0;">After FINISH MISSION, the widget waits this many seconds (showing a countdown) then automatically clears itself back to START MISSION — ready for the next group without anyone touching Admin Mode.</p>
       </div>
 
       <div class="s-sec"><h4>Appearance</h4>
@@ -492,6 +547,7 @@ function saveSettingsFromPanel(){
     successMessage: document.getElementById('st-successMessage').value,
     showStart: document.getElementById('st-showStart').checked,
     showFinish: document.getElementById('st-showFinish').checked,
+    autoResetSeconds: parseInt(document.getElementById('st-autoResetSeconds').value, 10) || 0,
     primaryColor: document.getElementById('st-primaryColor').value,
     secondaryColor: document.getElementById('st-secondaryColor').value,
     textColor: document.getElementById('st-textColor').value,
