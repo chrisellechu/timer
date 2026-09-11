@@ -218,9 +218,31 @@ const DEFAULT_SETTINGS = {
   position: 'top-right'
 };
 
+// Baseline overrides per room, applied BEFORE any device-saved
+// settings. This is what fixes the "every new device needs Room 5
+// manually reconfigured" problem: since there's no backend, a brand
+// new device has no saved settings for Room 5 yet, so without this
+// it would fall back to DEFAULT_SETTINGS above (Finish OFF) and
+// require manual setup every single time. With this in place, a
+// device that has NEVER touched Admin Mode for a given room still
+// starts out correctly configured for that room automatically.
+// If you use Admin Mode to customize a room differently on a
+// specific device, that device's saved choice still wins over this
+// baseline -- this only fills in the gap when nothing's been saved
+// yet.
+const ROOM_BASELINE_DEFAULTS = {
+  room1: { showStart: true,  showFinish: false },
+  room2: { showStart: false, showFinish: false },
+  room3: { showStart: false, showFinish: false },
+  room4: { showStart: false, showFinish: false },
+  room5: { showStart: false, showFinish: true  }
+};
+
 function loadSettings(){
+  const roomBaseline = ROOM_BASELINE_DEFAULTS[ROOM_ID] || {};
+  const withRoomBaseline = Object.assign({}, DEFAULT_SETTINGS, roomBaseline);
   const stored = JSON.parse(localStorage.getItem(K_SETTINGS) || 'null') || {};
-  return Object.assign({}, DEFAULT_SETTINGS, stored);
+  return Object.assign({}, withRoomBaseline, stored);
 }
 function saveSettings(s){ localStorage.setItem(K_SETTINGS, JSON.stringify(s)); }
 
