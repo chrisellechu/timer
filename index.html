@@ -106,6 +106,23 @@
     background:rgba(0,56,101,0.35); color:#fff; font-size:14px;
     display:flex; align-items:center; justify-content:center;
   }
+  .pin-box{
+    background:#fff; border-radius:14px; padding:22px 24px;
+    max-width:240px; width:100%; text-align:center;
+  }
+  .pin-box h3{ margin:0 0 10px 0; color:#003865; font-size:16px; }
+  .pin-box input{
+    width:100%; padding:10px; font-size:20px; text-align:center;
+    letter-spacing:.3em; border:1px solid #ccc; border-radius:8px;
+    margin-bottom:8px; font-family:inherit;
+  }
+  .pin-box input:focus{ outline:none; border-color:#0093D0; }
+  .pin-box button{
+    width:100%; padding:9px; border:none; border-radius:8px;
+    background:#0093D0; color:#fff; font-weight:700; font-size:14px;
+    font-family:inherit; cursor:pointer;
+  }
+  .pin-err{ color:#c0392b; font-size:11px; min-height:14px; margin-bottom:6px; }
   .settings-overlay{
     display:none; position:fixed; inset:0; z-index:999;
     background:rgba(0,20,40,0.55);
@@ -209,6 +226,7 @@ const DEFAULT_SETTINGS = {
   showStart: true,
   showFinish: false,
   autoResetSeconds: 20,
+  adminPin: '1000',
   primaryColor: '#0093D0',
   secondaryColor: '#003865',
   textColor: '#003865',
@@ -452,8 +470,31 @@ window.addEventListener('storage', (e) => {
 const gearBtn = document.getElementById('gear-btn');
 const settingsOv = document.getElementById('settings-overlay');
 
-gearBtn.addEventListener('click', renderSettingsPanel);
+gearBtn.addEventListener('click', openTimerPin);
 settingsOv.addEventListener('click', (e) => { if(e.target === settingsOv) settingsOv.classList.remove('show'); });
+
+function openTimerPin(){
+  settingsOv.innerHTML = `
+    <div class="pin-box">
+      <h3>Settings</h3>
+      <div class="pin-err" id="tp-err"></div>
+      <input type="password" id="tp-in" inputmode="numeric" maxlength="8" placeholder="PIN" autofocus>
+      <button id="tp-btn">Unlock</button>
+    </div>`;
+  settingsOv.classList.add('show');
+  document.getElementById('tp-btn').addEventListener('click', checkTimerPin);
+  document.getElementById('tp-in').addEventListener('keydown', e => { if(e.key==='Enter') checkTimerPin(); });
+  settingsOv.addEventListener('click', e => { if(e.target===settingsOv) settingsOv.classList.remove('show'); }, { once:true });
+  setTimeout(() => document.getElementById('tp-in').focus(), 50);
+}
+
+function checkTimerPin(){
+  if(document.getElementById('tp-in').value === SETTINGS.adminPin){
+    renderSettingsPanel();
+  } else {
+    document.getElementById('tp-err').textContent = 'Incorrect PIN.';
+  }
+}
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
@@ -532,6 +573,13 @@ function renderSettingsPanel(){
         </select>
       </div>
 
+      <div class="s-sec"><h4>Admin Access</h4>
+        <div class="s-field">
+          <label>Settings PIN</label>
+          <input type="text" id="st-adminPin" value="${esc(s.adminPin||'1000')}">
+        </div>
+      </div>
+
       <div class="s-actions">
         <button class="btn-save" id="st-save">Save Settings</button>
         <button class="btn-reset-mission" id="st-reset">Reset Mission Timer</button>
@@ -576,7 +624,8 @@ function saveSettingsFromPanel(){
     fontSize: parseInt(document.getElementById('st-fontSize').value,10),
     cardWidth: parseInt(document.getElementById('st-cardWidth').value,10),
     transparency: parseInt(document.getElementById('st-transparency').value,10),
-    position: document.getElementById('st-position').value
+    position: document.getElementById('st-position').value,
+    adminPin: document.getElementById('st-adminPin').value || '1000'
   };
   saveSettings(SETTINGS);
   applySettings();
